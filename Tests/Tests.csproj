@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>netcoreapp3.1;net48</TargetFrameworks>
+        <IsPackable>false</IsPackable>
+        <PostSharpSearchPath>..\Weaver\bin\$(Configuration)\netstandard2.0</PostSharpSearchPath>
+        <RootNamespace>PostSharp.Community.ToString.Tests</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.2.0" />
+        <PackageReference Include="PostSharp" Version="6.6.3-preview" />
+        <PackageReference Include="xunit" Version="2.4.0" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Client\Client.csproj" />
+      <ProjectReference Include="..\ReferencedDependency\ReferencedDependency.csproj" />
+      <ProjectReference Include="..\Weaver\Weaver.csproj" />
+    </ItemGroup>
+
+</Project>

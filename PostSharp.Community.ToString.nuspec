@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package>
+  <metadata>
+    <id>PostSharp.Community.ToString</id>
+    <version>1.0-preview</version>
+    <title>PostSharp.Community.ToString</title>
+    <authors>PostSharp Technologies, Simon Cropp and contributors</authors>
+    <owners>PostSharp Technologies</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <projectUrl>https://github.com/postsharp/PostSharp.Community.ToString</projectUrl>
+    <icon>icon.png</icon>
+    <description>Auto-generates `ToString()` based on your class's fields and/or properties.</description>
+    <releaseNotes>Initial release.</releaseNotes>
+    <copyright>SharpCrafters s.r.o., Simon Cropp and contributors</copyright>
+    <tags>postsharp ilweaving addin tostring</tags>
+    <dependencies>
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="PostSharp" version="[6.6.3-preview,7.0)" />
+      </group>
+    </dependencies>
+  </metadata>
+
+  <files>
+    <file src="Client\bin\Release\netstandard2.0\PostSharp.Community.HelloWorld.dll" target="lib\netstandard2.0"/>
+    <file src="Client\bin\Release\netstandard2.0\PostSharp.Community.HelloWorld.xml" target="lib\netstandard2.0"/>
+    <file src="Weaver\bin\Release\netstandard2.0\PostSharp.Community.HelloWorld.Weaver.dll" target="tools"/>
+    <file src="icon.png" target="" />
+  </files>
+</package>
