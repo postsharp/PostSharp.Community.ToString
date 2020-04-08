@@ -1,34 +1,37 @@
-﻿﻿using System;
+﻿using System;
 
-public class StatePrinter
+namespace ReferencedDependency
 {
-    public string PrintObject( object o )
+    public class StatePrinter
     {
-        return o.ToString();
+        public string PrintObject( object o )
+        {
+            return o.ToString();
+        }
     }
-}
 
-public class DomainObject
-{
-    static readonly StatePrinter StatePrinter = new StatePrinter();
-
-    public override string ToString()
+    public class DomainObject
     {
-        return StatePrinter.PrintObject( this );
+        static readonly StatePrinter StatePrinter = new StatePrinter();
+
+        public override string ToString()
+        {
+            return "MyToStringMethod";
+        }
     }
-}
 
-public class IdObject : DomainObject
-{
-    public Guid Id { get; set; }
-
-    public bool IsEmpty()
+    public class IdObject : DomainObject
     {
-        return Id == Guid.Empty;
-    }
-}
+        public Guid Id { get; set; }
 
-public class NameObject : IdObject
-{
-    public string Name { get; set; }
+        public bool IsEmpty()
+        {
+            return Id == Guid.Empty;
+        }
+    }
+
+    public class NameObject : IdObject
+    {
+        public string Name { get; set; }
+    }
 }

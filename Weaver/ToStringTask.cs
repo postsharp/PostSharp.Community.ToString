@@ -26,6 +26,7 @@ namespace PostSharp.Community.HelloWorld.Weaver
 
         public override bool Execute()
         {
+            return true;
             var consoleWriteLine = FindConsoleWriteLine();
 
             var enumerator =

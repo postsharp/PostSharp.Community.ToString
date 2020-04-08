@@ -22,5 +22,9 @@ namespace PostSharp.Community.ToString
         /// If true, the short name of the type is added to the ToString. The default is true, as in "MyType1; answer:42".
         /// </summary>
         public bool WriteTypeName { get; set; }
+        /// <summary>
+        /// If true, the ToString is result is wrapped in curly braces. The default is true, as in "{MyType1; answer:42}".
+        /// </summary>
+        public bool WrapWithBraces { get; set; }
     }
 }

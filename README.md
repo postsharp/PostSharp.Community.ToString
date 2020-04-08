@@ -1,4 +1,6 @@
 ## <img src="icon.png" width="32"> &nbsp; PostSharp.Community.ToString 
+**This add-in is not yet functioning!**
+
 Auto-generates `ToString()` based on your class's fields and/or properties.  
 #### Example
 Your code:

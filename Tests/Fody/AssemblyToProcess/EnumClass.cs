@@ -1,38 +1,41 @@
-﻿﻿using System;
+﻿using System;
 
-public enum NormalEnum
+namespace PostSharp.Community.ToString.Tests.Fody.AssemblyToProcess
 {
-    A = 0,
-    B = 1,
-    C = 2,
-    D = 3,
-    E = 4,
-}
-
-[Flags]
-public enum FlagsEnum
-{
-    G = 0,
-    H = 1,
-    I = 2,
-    J = 4,
-    K = 8,
-}
-
-[ToString]
-public class EnumClass
-{
-    public NormalEnum NormalEnum { get; set; }
-
-    public FlagsEnum FlagsEnum { get; set; }
-
-    public EnumClass()
+    public enum NormalEnum
     {
+        A = 0,
+        B = 1,
+        C = 2,
+        D = 3,
+        E = 4,
     }
 
-    public EnumClass(int normalEnum, int flagsEnum)
+    [Flags]
+    public enum FlagsEnum
     {
-        NormalEnum = (NormalEnum)normalEnum;
-        FlagsEnum = (FlagsEnum)flagsEnum;
+        G = 0,
+        H = 1,
+        I = 2,
+        J = 4,
+        K = 8,
+    }
+
+    [ToString]
+    public class EnumClass
+    {
+        public NormalEnum NormalEnum { get; set; }
+
+        public FlagsEnum FlagsEnum { get; set; }
+
+        public EnumClass()
+        {
+        }
+
+        public EnumClass(int normalEnum, int flagsEnum)
+        {
+            NormalEnum = (NormalEnum)normalEnum;
+            FlagsEnum = (FlagsEnum)flagsEnum;
+        }
     }
 }

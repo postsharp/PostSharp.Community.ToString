@@ -1,20 +1,25 @@
-﻿﻿public abstract class SuperClass
-{
-    public string NormalProperty => "Normal";
-    public virtual string VirtualProperty => "Virtual";
-    public abstract string AbstractProperty { get; }
-}
+﻿using PostSharp.Community.ToString;
 
-public interface INormalProperty
+namespace PostSharp.Community.ToString.Tests.Fody.AssemblyToProcess
 {
-    string NormalProperty { get; }
-}
+    public abstract class SuperClass
+    {
+        public string NormalProperty => "Normal";
+        public virtual string VirtualProperty => "Virtual";
+        public abstract string AbstractProperty { get; }
+    }
 
-[ToString]
-public class ClassWithDerivedProperties : SuperClass, INormalProperty
-{
-    public new string NormalProperty => "New";
-    string INormalProperty.NormalProperty => "Interface";
-    public override string VirtualProperty => "Override Virtual";
-    public override string AbstractProperty => "Override Abstract";
+    public interface INormalProperty
+    {
+        string NormalProperty { get; }
+    }
+
+    [ToString]
+    public class ClassWithDerivedProperties : SuperClass, INormalProperty
+    {
+        public new string NormalProperty => "New";
+        string INormalProperty.NormalProperty => "Interface";
+        public override string VirtualProperty => "Override Virtual";
+        public override string AbstractProperty => "Override Abstract";
+    }
 }

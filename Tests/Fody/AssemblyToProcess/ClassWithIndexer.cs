@@ -1,14 +1,17 @@
 ﻿﻿// ReSharper disable ValueParameterNotUsed
-[ToString]
-public class ClassWithIndexer
+namespace PostSharp.Community.ToString.Tests.Fody.AssemblyToProcess
 {
-    public int X { get; set; }
-
-    public byte Y { get; set; }
-
-    public int this[int index]
+    [ToString]
+    public class ClassWithIndexer
     {
-        get => X;
-        set => X = index;
+        public int X { get; set; }
+
+        public byte Y { get; set; }
+
+        public int this[int index]
+        {
+            get => X;
+            set => X = index;
+        }
     }
 }
