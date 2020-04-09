@@ -1,10 +1,17 @@
-﻿using PostSharp.Community.ToString.Tests.Fody.AssemblyToProcess;
+﻿using System.Globalization;
+using System.Threading;
+using PostSharp.Community.ToString.Tests.Fody.AssemblyToProcess;
 using Xunit;
 
 namespace PostSharp.Community.ToString.Tests.Fody
 {
     public class AttributesTests 
     {
+        public AttributesTests()
+        {
+            Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+        }
+        
         string PropertyNameToValueSeparator = "==";
         string PropertiesSeparator = "==";
     
@@ -20,7 +27,7 @@ namespace PostSharp.Community.ToString.Tests.Fody
             var result = instance.ToString();
 
             Assert.Equal(
-                string.Format("{{T{0}\"NormalClass\", X{0}1, Y{0}\"2\", Z{0}4.5, V{0}\"C\"}}", PropertyNameToValueSeparator),
+                string.Format("{{NormalClassValueSeparator; X{0}1, Y{0}2, Z{0}4.5, V{0}C}}", PropertyNameToValueSeparator),
                 result);
         }
 
@@ -36,7 +43,7 @@ namespace PostSharp.Community.ToString.Tests.Fody
             var result = instance.ToString();
 
             Assert.Equal(
-                string.Format("{{T: \"NormalClass\"{0}X: 1{0}Y: \"2\"{0}Z: 4.5{0}V: \"C\"}}", PropertiesSeparator),
+                string.Format("{{NormalClassPropertiesSeparator; X: 1{0}Y: 2{0}Z: 4.5{0}V: C}}", PropertiesSeparator),
                 result);
         }
 
@@ -52,7 +59,7 @@ namespace PostSharp.Community.ToString.Tests.Fody
             var result = instance.ToString();
 
             Assert.Equal(
-                "T: \"NormalClass\", X: 1, Y: \"2\", Z: 4.5, V: \"C\"",
+                "NormalClassNoWrap; X: 1, Y: 2, Z: 4.5, V: C",
                 result);
         }
 
@@ -68,7 +75,7 @@ namespace PostSharp.Community.ToString.Tests.Fody
             var result = instance.ToString();
 
             Assert.Equal(
-                "{X: 1, Y: \"2\", Z: 4.5, V: \"C\"}",
+                "{X: 1, Y: 2, Z: 4.5, V: C}",
                 result);
         }
     }

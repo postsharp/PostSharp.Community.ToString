@@ -1,16 +1,16 @@
-using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
-using PostSharp.Community.ToString;
-using PostSharp.Extensibility;
-using PostSharp.Reflection;
+using System.Text;
 using PostSharp.Sdk.CodeModel;
+using PostSharp.Sdk.CodeModel.Helpers;
 using PostSharp.Sdk.CodeModel.TypeSignatures;
+using PostSharp.Sdk.Collections;
 using PostSharp.Sdk.Extensibility;
-using PostSharp.Sdk.Extensibility.Configuration;
+using PostSharp.Sdk.Extensibility.Compilers;
 using PostSharp.Sdk.Extensibility.Tasks;
 
-namespace PostSharp.Community.HelloWorld.Weaver
+namespace PostSharp.Community.ToString.Weaver
 {
 
     [ExportTask(Phase = TaskPhase.CustomTransform, TaskName = nameof(ToStringTask))]
@@ -20,81 +20,181 @@ namespace PostSharp.Community.HelloWorld.Weaver
         [ImportService]
         private IAnnotationRepositoryService annotationRepositoryService;
 
+        [ImportService] private ICompilerAdapterService compilerAdapterService;
+
+        private Assets assets;
+
         // This string, if defined, is printed to standard output if you build a project that uses this add-in from commandline.
         // It will not show up in Visual Studio/Rider.
         public override string CopyrightNotice => null;
 
         public override bool Execute()
         {
-            return true;
-            var consoleWriteLine = FindConsoleWriteLine();
-
-            var enumerator =
-                annotationRepositoryService.GetAnnotationsOfType(typeof(ToStringAttribute), false, false);
-            while (enumerator.MoveNext())
+            assets = new Assets(this.Project.Module);
+            
+            List<IAnnotationInstance> types = annotationRepositoryService.GetAnnotations(typeof(ToStringAttribute));
+            List<IAnnotationInstance> ignored = annotationRepositoryService.GetAnnotations(typeof(IgnoreDuringToStringAttribute));
+            List<IAnnotationInstance> global = annotationRepositoryService.GetAnnotations(typeof(ToStringGlobalOptionsAttribute));
+            Configuration basicConfig = new Configuration();
+            if (global.Count > 0)
             {
-                // Iterates over declarations to which our attribute has been applied. If the attribute weren't
-                // a MulticastAttribute, that would be just the declarations that it annotates. With multicasting, it 
-                // can be far more declarations.
-
-                MetadataDeclaration targetDeclaration = enumerator.Current.TargetElement;
-
-                // Multicasting ensures that our attribute is only applied to methods, so there is little chance of 
-                // a class cast error here:
-                MethodDefDeclaration targetMethod = (MethodDefDeclaration) targetDeclaration;
-
-                AddHelloWorldToMethod(targetMethod, consoleWriteLine);
+                basicConfig = Configuration.ReadConfiguration(global[0].Value, basicConfig);
             }
 
+            HashSet<MetadataDeclaration> ignoredDeclarations = new HashSet<MetadataDeclaration>(ignored.Select(tuple => tuple.TargetElement));
+            foreach (var tuple in types)
+            {
+                var config = Configuration.ReadConfiguration(tuple.Value, basicConfig);
+                AddToStringToType(tuple.TargetElement as TypeDefDeclaration, config, ignoredDeclarations);
+            }
             return true;
         }
 
-        private IMethod FindConsoleWriteLine()
+        private void AddToStringToType(TypeDefDeclaration enhancedType, Configuration config, HashSet<MetadataDeclaration> ignoredDeclarations)
         {
-            // Represents the module (= assembly) that we're modifying:
-            ModuleDeclaration module = this.Project.Module;
-
-            // Finds the System.Console type usable in that module. We don't know exactly where it comes from. It could
-            // be mscorlib in .NET Framework or something else in .NET Core:
-            INamedType console = (INamedType) module.FindType(typeof(Console));
-
-            // Finds the one overload that we want: System.Console.WriteLine(System.String):
-            IGenericMethodDefinition method = module.FindMethod( console, "WriteLine",
-                declaration => declaration.Parameters.Count == 1 && 
-                               declaration.Parameters[0].ParameterType.GetReflectionName() == "System.String" );
-
-            return method;
-        }
-
-        private static void AddHelloWorldToMethod(MethodDefDeclaration targetMethod, IMethod consoleWriteLine)
-        {
-            // Removes the original code from the method body. Without this, you would get exceptions:
-            InstructionBlock originalCode = targetMethod.MethodBody.RootInstructionBlock;
-            originalCode.Detach();
-
-            // Replaces the method body's content:
-            InstructionBlock root = targetMethod.MethodBody.CreateInstructionBlock();
-            targetMethod.MethodBody.RootInstructionBlock = root;
-
-            InstructionBlock helloWorldBlock = root.AddChildBlock();
-            InstructionSequence helloWorldSequence = helloWorldBlock.AddInstructionSequence();
-            using (var writer = InstructionWriter.GetInstance())
+            if (enhancedType.Methods.Any<IMethod>(m => m.Name == "ToString" &&
+                                                               !m.IsStatic && 
+                                                               m.ParameterCount == 0))
             {
-                // Add instructions to the beginning of the method body:
-                writer.AttachInstructionSequence(helloWorldSequence);
+                // It's already present, just skip it.
+                return;
+            }
+               
+            // Create signature
+            MethodDefDeclaration method = new MethodDefDeclaration
+            {
+                Name = "ToString",
+                CallingConvention = CallingConvention.HasThis,
+                Attributes = MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.HideBySig
+            };
+            enhancedType.Methods.Add(method);
+            CompilerGeneratedAttributeHelper.AddCompilerGeneratedAttribute(method);
+            method.ReturnParameter = ParameterDeclaration.CreateReturnParameter(enhancedType.Module.Cache.GetIntrinsic(IntrinsicType.String));
 
-                // Say that what follows is compiler-generated code:
-                writer.EmitSymbolSequencePoint(SymbolSequencePoint.Hidden);
+            List<FieldDefDeclaration> fields = new List<FieldDefDeclaration>();
+            foreach (FieldDefDeclaration field in enhancedType.Fields)
+            {
+                if (field.IsStatic || field.IsConst || ignoredDeclarations.Contains(field)) continue;
+                fields.Add(field);
+            }
+            
+            List<PropertyDeclaration> properties = new List<PropertyDeclaration>();
+            foreach (PropertyDeclaration property in enhancedType.Properties)
+            {
+                if (property.IsStatic || ignoredDeclarations.Contains(property) || !property.CanRead || property.Getter.Parameters.Count != 0) continue;
+                FieldDefDeclaration backingField = compilerAdapterService.GetBackingField(property);
+                if (backingField != null)
+                {
+                    fields.Remove(backingField);
+                }
+                properties.Add(property);
+            }
+            
+            // Generate code:
+            using (InstructionWriter writer = InstructionWriter.GetInstance())
+            {
+                CreatedEmptyMethod getHashCodeData = MethodBodyCreator.CreateModifiableMethodBody(writer, method);
+                var resultVariable = getHashCodeData.ReturnVariable;
+                writer.AttachInstructionSequence(getHashCodeData.PrincipalBlock.AddInstructionSequence());
 
-                // Emit a call to Console.WriteLine("Hello, world!"):
-                writer.EmitInstructionString(OpCodeNumber.Ldstr, "Hello, world!");
-                writer.EmitInstructionMethod(OpCodeNumber.Call, consoleWriteLine);
-
+                bool enhancedTypeIsValueType = enhancedType.IsValueTypeSafe() == true;
+                int numberOfArguments = fields.Count + properties.Count;
+                string formatString = ConstructFormatString(config, enhancedType, fields, properties);
+                writer.EmitInstructionString(OpCodeNumber.Ldstr, formatString);
+                 writer.EmitInstructionInt32(OpCodeNumber.Ldc_I4, numberOfArguments);
+                 writer.EmitInstructionType(OpCodeNumber.Newarr, enhancedType.Module.Cache.GetIntrinsic(IntrinsicType.Object));
+                int i = 0;
+                foreach (var field in fields)
+                {
+                    EmitLoadToString(writer, i, field);
+                    i++;
+                }
+                foreach (var property in properties)
+                {
+                    EmitLoadToString(writer, i, property, enhancedTypeIsValueType);
+                    i++;
+                }
+                writer.EmitInstructionMethod(OpCodeNumber.Call, assets.String_Format);
+                writer.EmitInstructionLocalVariable(OpCodeNumber.Stloc, resultVariable);
+                
+                // Return the hash:
+                writer.EmitBranchingInstruction(OpCodeNumber.Br, getHashCodeData.ReturnSequence);
                 writer.DetachInstructionSequence();
             }
+        }
 
-            // Re-adding the original code at the end:
-            root.AddChildBlock(originalCode);
+        private void EmitLoadToString(InstructionWriter writer, int index, PropertyDeclaration property, bool enhancedTypeIsValueType)
+        {
+            EmitPrologueToLoad(writer, index);
+            writer.EmitInstruction(OpCodeNumber.Ldarg_0);
+            writer.EmitInstructionMethod(enhancedTypeIsValueType ? OpCodeNumber.Call : OpCodeNumber.Callvirt, property.Getter.GetCanonicalGenericInstance());
+            EmitEpilogueToLoad(writer, property.PropertyType);
+        }
+        private void EmitLoadToString(InstructionWriter writer, int index, FieldDefDeclaration field)
+        {
+            EmitPrologueToLoad(writer, index);
+            writer.EmitInstruction(OpCodeNumber.Ldarg_0);
+            writer.EmitInstructionField(OpCodeNumber.Ldfld, field.GetCanonicalGenericInstance());
+            EmitEpilogueToLoad(writer, field.FieldType);
+        }
+        private void EmitPrologueToLoad(InstructionWriter writer, int index)
+        {
+            writer.EmitInstruction(OpCodeNumber.Dup);
+            writer.EmitInstructionInt32(OpCodeNumber.Ldc_I4, index);
+            // TODO null: write null
+        }
+        private void EmitEpilogueToLoad(InstructionWriter writer, ITypeSignature type)
+        {
+            if (type.IsValueTypeSafe() == true || type.TypeSignatureElementKind == TypeSignatureElementKind.GenericParameterReference)
+            {
+                writer.EmitInstructionType(OpCodeNumber.Box, type);
+            }
+            writer.EmitInstruction(OpCodeNumber.Stelem_Ref);
+        }
+
+      
+
+      
+
+        private string ConstructFormatString(Configuration config, TypeDefDeclaration type, List<FieldDefDeclaration> fields, List<PropertyDeclaration> properties)
+        {
+            StringBuilder sb = new StringBuilder();
+            if (config.WrapWithBraces)
+            {
+                sb.Append("{{");
+            }
+            if (config.WriteTypeName)
+            {
+                sb.Append(type.ShortName + "; ");
+            }
+
+            var all = fields.Concat<NamedMetadataDeclaration>(properties);
+            int i = 0;
+            foreach (NamedMetadataDeclaration item in all)
+            {
+                if (i != 0)
+                {
+                    sb.Append(config.PropertiesSeparator);
+                }
+
+                string name = item.Name;
+                int lastDot = name.LastIndexOf('.');
+                if (lastDot != -1)
+                {
+                    name = name.Substring(lastDot + 1);
+                }
+                sb.Append(name);
+                sb.Append(config.NameValueSeparator);
+                sb.Append("{");
+                sb.Append(i);
+                sb.Append("}");
+                i++;
+            }
+            if (config.WrapWithBraces)
+            {
+                sb.Append("}}");
+            }
+            return sb.ToString();
         }
     }
 }
