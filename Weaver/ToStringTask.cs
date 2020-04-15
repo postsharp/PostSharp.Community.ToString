@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using PostSharp.Reflection;
 using PostSharp.Sdk.CodeModel;
 using PostSharp.Sdk.CodeModel.Helpers;
 using PostSharp.Sdk.CodeModel.TypeSignatures;
@@ -68,14 +69,16 @@ namespace PostSharp.Community.ToString.Weaver
             method.ReturnParameter = ParameterDeclaration.CreateReturnParameter(enhancedType.Module.Cache.GetIntrinsic(IntrinsicType.String));
 
             List<UsableField> fields = new List<UsableField>();
-            List<PropertyDeclaration> properties = new List<PropertyDeclaration>();
+            List<UsableProperty> properties = new List<UsableProperty>();
             TypeDefDeclaration processingType = enhancedType;
             GenericMap mapToGetThere = enhancedType.GetGenericContext();
+            bool isInBaseType = false;
             while (true)
             {
                 foreach (FieldDefDeclaration field in processingType.Fields)
                 {
                     if (field.IsStatic || field.IsConst || ignoredDeclarations.Contains(field)) continue;
+                    if (isInBaseType && !field.IsVisible(enhancedType)) continue;
                     fields.Add(new UsableField(field, mapToGetThere));
                 }
                 foreach (PropertyDeclaration property in processingType.Properties)
@@ -88,13 +91,17 @@ namespace PostSharp.Community.ToString.Weaver
 
                     if (property.IsStatic || ignoredDeclarations.Contains(property) || !property.CanRead ||
                         property.Getter.Parameters.Count != 0) continue;
-                    properties.Add(property);
+                    if (isInBaseType && !property.IsVisible(enhancedType)) continue;
+                    if (properties.Any(prp => prp.PropertyDefinition.Name == property.Name)) continue;
+                    properties.Add(new UsableProperty(property, mapToGetThere));
                 }
 
                 if (processingType.BaseType == null)
                 {
                     break;
                 }
+
+                isInBaseType = true;
                 mapToGetThere = processingType.BaseType.GetGenericContext().Apply(mapToGetThere);
                 processingType = processingType.BaseType.GetTypeDefinition();
             }
@@ -131,15 +138,15 @@ namespace PostSharp.Community.ToString.Weaver
             }
         }
 
-        private void EmitLoadToString(InstructionWriter writer, int index, PropertyDeclaration property, bool enhancedTypeIsValueType)
+        private void EmitLoadToString(InstructionWriter writer, int index, UsableProperty property, bool enhancedTypeIsValueType)
         {
             EmitPrologueToLoad(writer, index);
             writer.EmitInstruction(OpCodeNumber.Ldarg_0);
             writer.EmitInstructionMethod(enhancedTypeIsValueType ? OpCodeNumber.Call : OpCodeNumber.Callvirt,
-                property.Getter
-                    .GetGenericInstance(property.DeclaringType.GetGenericContext())
+                property.PropertyDefinition.Getter
+                    .GetGenericInstance(property.MapToAccessThisPropertyFromMostDerivedClass)
                     .TranslateMethod(this.Project.Module));
-            EmitEpilogueToLoad(writer, property.PropertyType);
+            EmitEpilogueToLoad(writer, property.PropertyDefinition.PropertyType.TranslateType(this.Project.Module).MapGenericArguments(property.MapToAccessThisPropertyFromMostDerivedClass));
         }
         private void EmitLoadToString(InstructionWriter writer, int index, UsableField field)
         {
@@ -156,7 +163,8 @@ namespace PostSharp.Community.ToString.Weaver
         }
         private void EmitEpilogueToLoad(InstructionWriter writer, ITypeSignature type)
         {
-            if (type.IsValueTypeSafe() == true || type.TypeSignatureElementKind == TypeSignatureElementKind.GenericParameterReference)
+            if (type.IsValueTypeSafe() == true || type.TypeSignatureElementKind == TypeSignatureElementKind.GenericParameterReference ||
+                type.TypeSignatureElementKind == TypeSignatureElementKind.GenericParameter)
             {
                 writer.EmitInstructionType(OpCodeNumber.Box, type);
             }
@@ -182,7 +190,7 @@ namespace PostSharp.Community.ToString.Weaver
 
       
 
-        private string ConstructFormatString(Configuration config, TypeDefDeclaration type, List<UsableField> fields, List<PropertyDeclaration> properties)
+        private string ConstructFormatString(Configuration config, TypeDefDeclaration type, List<UsableField> fields, List<UsableProperty> properties)
         {
             StringBuilder sb = new StringBuilder();
             bool isThereAnything = fields.Count > 0 || properties.Count > 0;
@@ -195,7 +203,7 @@ namespace PostSharp.Community.ToString.Weaver
                 sb.Append(type.ShortName + (isThereAnything ? "; " : ""));
             }
 
-            var all = fields.Select(fld => fld.FieldDefinition).Concat<NamedMetadataDeclaration>(properties);
+            var all = fields.Select(fld => fld.FieldDefinition).Concat<NamedMetadataDeclaration>(properties.Select(prp => prp.PropertyDefinition));
             int i = 0;
             foreach (NamedMetadataDeclaration item in all)
             {

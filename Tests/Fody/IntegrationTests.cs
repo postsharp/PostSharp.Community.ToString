@@ -112,7 +112,7 @@ namespace PostSharp.Community.ToString.Tests.Fody
 
             var result = instance.ToString();
 
-            Assert.Equal("{ComplexChild; InChildNumber: 1, InChildText: 2, InChildCollection: [3], InParentNumber: 4, InParentText: 5, InParentCollection: [6]}", result);
+            Assert.Equal("{ComplexChild; InChildNumber: 1, InChildText: 2, InChildCollection: System.Int32[], InParentNumber: 4, InParentText: 5, InParentCollection: System.Int32[]}", result);
         }
 
         [Fact]
@@ -295,7 +295,7 @@ namespace PostSharp.Community.ToString.Tests.Fody
 
             var result = instance.ToString();
 
-            Assert.Equal("{WithInheritedPropertyOfGenericType; X: 6, GP: GenericClassNormalClass; D: 3, C: 1}}", result);
+            Assert.Equal("{WithInheritedPropertyOfGenericType; X: 6, GP: {GenericClassNormalClass; D: 3, C: 1}}", result);
         }
 
         #endregion
