@@ -5,7 +5,7 @@ namespace PostSharp.Community.ToString
     /// <summary>
     /// Base class for <see cref="ToStringAttribute"/> and <see cref="ToStringGlobalOptionsAttribute"/>.
     /// </summary>
-    public class AbstractBaseToStringAttribute : MulticastAttribute
+    public abstract class AbstractBaseToStringAttribute : MulticastAttribute
     {
         private protected AbstractBaseToStringAttribute()
         {
