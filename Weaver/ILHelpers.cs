@@ -36,41 +36,5 @@ namespace PostSharp.Community.ToString.Weaver
             writer.DetachInstructionSequence();
             writer.AttachInstructionSequence(endSequence);
         }
-        
-        /// <summary>
-        /// Emits:
-        /// <code>
-        ///   br begin;
-        /// begin:
-        ///   condition();
-        ///   brfalse end;
-        ///   body();
-        ///   br begin;
-        /// end:
-        /// </code> 
-        /// </summary>
-        public static void WhileNotZero(this InstructionWriter writer,
-            Action condition,
-            Action body)
-        {
-            InstructionSequence loopBegin =
-                writer.CurrentInstructionSequence.ParentInstructionBlock.AddInstructionSequence();
-            InstructionSequence loopEnd =
-                writer.CurrentInstructionSequence.ParentInstructionBlock.AddInstructionSequence();
-            
-            writer.EmitBranchingInstruction(OpCodeNumber.Br, loopBegin);
-            writer.DetachInstructionSequence();
-            writer.AttachInstructionSequence(loopBegin);
-
-            condition();
-
-            writer.EmitBranchingInstruction(OpCodeNumber.Brfalse, loopEnd);
-
-            body();
-
-            writer.EmitBranchingInstruction(OpCodeNumber.Br, loopBegin);
-            writer.DetachInstructionSequence();
-            writer.AttachInstructionSequence(loopEnd);
-        }
     }
 }

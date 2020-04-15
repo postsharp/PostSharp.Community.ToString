@@ -5,6 +5,9 @@ namespace PostSharp.Community.ToString.Weaver
 {
     public class Assets
     {
+        /// <summary>
+        /// Gets the method <see cref="string.Format(string,object[])"/>.
+        /// </summary>
         public IMethod String_Format { get; }
 
         public Assets(ModuleDeclaration module)

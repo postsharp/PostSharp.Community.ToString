@@ -2,11 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using PostSharp.Reflection;
 using PostSharp.Sdk.CodeModel;
 using PostSharp.Sdk.CodeModel.Helpers;
-using PostSharp.Sdk.CodeModel.TypeSignatures;
-using PostSharp.Sdk.Collections;
 using PostSharp.Sdk.Extensibility;
 using PostSharp.Sdk.Extensibility.Compilers;
 using PostSharp.Sdk.Extensibility.Tasks;
@@ -19,7 +16,8 @@ namespace PostSharp.Community.ToString.Weaver
     {
         [ImportService]
         private IAnnotationRepositoryService annotationRepositoryService;
-        [ImportService] private ICompilerAdapterService compilerAdapterService;
+        [ImportService]
+        private ICompilerAdapterService compilerAdapterService;
 
         private Assets assets;
 
@@ -31,14 +29,8 @@ namespace PostSharp.Community.ToString.Weaver
             
             List<IAnnotationInstance> types = annotationRepositoryService.GetAnnotations(typeof(ToStringAttribute));
             List<IAnnotationInstance> ignored = annotationRepositoryService.GetAnnotations(typeof(IgnoreDuringToStringAttribute));
-            List<IAnnotationInstance> global = annotationRepositoryService.GetAnnotations(typeof(ToStringGlobalOptionsAttribute));
-            Configuration basicConfig = new Configuration();
-            if (global.Count > 0)
-            {
-                basicConfig = Configuration.ReadConfiguration(global[0].Value, basicConfig);
-            }
-
             HashSet<MetadataDeclaration> ignoredDeclarations = new HashSet<MetadataDeclaration>(ignored.Select(tuple => tuple.TargetElement));
+            var basicConfig = Configuration.FindGlobalConfiguration(annotationRepositoryService);
             foreach (var tuple in types)
             {
                 var config = Configuration.ReadConfiguration(tuple.Value, basicConfig);
@@ -68,6 +60,51 @@ namespace PostSharp.Community.ToString.Weaver
             CompilerGeneratedAttributeHelper.AddCompilerGeneratedAttribute(method);
             method.ReturnParameter = ParameterDeclaration.CreateReturnParameter(enhancedType.Module.Cache.GetIntrinsic(IntrinsicType.String));
 
+            var (fields, properties) = FindFieldsAndProperties(enhancedType, ignoredDeclarations);
+
+            // Generate code:
+            using (InstructionWriter writer = InstructionWriter.GetInstance())
+            {
+                CreatedEmptyMethod getHashCodeData = MethodBodyCreator.CreateModifiableMethodBody(writer, method);
+                writer.AttachInstructionSequence(getHashCodeData.PrincipalBlock.AddInstructionSequence());
+                
+                // Create the format string and put it on the stack:
+                int numberOfArguments = fields.Count + properties.Count;
+                string formatString = ConstructFormatString(config, enhancedType, fields, properties);
+                writer.EmitInstructionString(OpCodeNumber.Ldstr, formatString);
+                // Create the argument array and put it on the stack:
+                writer.EmitInstructionInt32(OpCodeNumber.Ldc_I4, numberOfArguments);
+                writer.EmitInstructionType(OpCodeNumber.Newarr, enhancedType.Module.Cache.GetIntrinsic(IntrinsicType.Object));
+                
+                // Put all the field and property values on the stack:
+                int i = 0;
+                foreach (var field in fields)
+                {
+                    EmitLoadToString(writer, i, field);
+                    i++;
+                }
+                bool enhancedTypeIsValueType = enhancedType.IsValueTypeSafe() == true;
+                foreach (var property in properties)
+                {
+                    EmitLoadToString(writer, i, property, enhancedTypeIsValueType);
+                    i++;
+                }
+                
+                // Return string.Format(formatString, theArgumentArray):
+                writer.EmitInstructionMethod(OpCodeNumber.Call, assets.String_Format);
+                writer.EmitInstructionLocalVariable(OpCodeNumber.Stloc, getHashCodeData.ReturnVariable);
+                writer.EmitBranchingInstruction(OpCodeNumber.Br, getHashCodeData.ReturnSequence);
+                writer.DetachInstructionSequence();
+            }
+        }
+
+        /// <summary>
+        /// Finds all fields and properties in the type that should be put into ToString. This includes accessible
+        /// fields and properties in base classes, transitively, but it excludes ignored fields and properties.
+        /// </summary>
+        private (List<UsableField> fields, List<UsableProperty> properties) FindFieldsAndProperties(TypeDefDeclaration enhancedType,
+            HashSet<MetadataDeclaration> ignoredDeclarations)
+        {
             List<UsableField> fields = new List<UsableField>();
             List<UsableProperty> properties = new List<UsableProperty>();
             TypeDefDeclaration processingType = enhancedType;
@@ -78,24 +115,33 @@ namespace PostSharp.Community.ToString.Weaver
                 foreach (FieldDefDeclaration field in processingType.Fields)
                 {
                     if (field.IsStatic || field.IsConst || ignoredDeclarations.Contains(field)) continue;
+                    // Exclude inaccessible fields:
                     if (isInBaseType && !field.IsVisible(enhancedType)) continue;
+                    
                     fields.Add(new UsableField(field, mapToGetThere));
                 }
+
                 foreach (PropertyDeclaration property in processingType.Properties)
                 {
+                    // For auto-implemented properties, consider the property only, not the field:
                     FieldDefDeclaration backingField = compilerAdapterService.GetBackingField(property);
                     if (backingField != null)
                     {
                         fields.RemoveAll(f => f.FieldDefinition == backingField);
                     }
-
+                    // Exclude indexers:
                     if (property.IsStatic || ignoredDeclarations.Contains(property) || !property.CanRead ||
                         property.Getter.Parameters.Count != 0) continue;
+                    // Exclude inaccessible properties:
                     if (isInBaseType && !property.IsVisible(enhancedType)) continue;
+                    // Exclude base properties with the same name. This way, if a property is overridden, we output it
+                    // only once:
                     if (properties.Any(prp => prp.PropertyDefinition.Name == property.Name)) continue;
+                    
                     properties.Add(new UsableProperty(property, mapToGetThere));
                 }
 
+                // Ends at System.Object:
                 if (processingType.BaseType == null)
                 {
                     break;
@@ -106,61 +152,41 @@ namespace PostSharp.Community.ToString.Weaver
                 processingType = processingType.BaseType.GetTypeDefinition();
             }
 
-            // Generate code:
-            using (InstructionWriter writer = InstructionWriter.GetInstance())
-            {
-                CreatedEmptyMethod getHashCodeData = MethodBodyCreator.CreateModifiableMethodBody(writer, method);
-                var resultVariable = getHashCodeData.ReturnVariable;
-                writer.AttachInstructionSequence(getHashCodeData.PrincipalBlock.AddInstructionSequence());
-
-                bool enhancedTypeIsValueType = enhancedType.IsValueTypeSafe() == true;
-                int numberOfArguments = fields.Count + properties.Count;
-                string formatString = ConstructFormatString(config, enhancedType, fields, properties);
-                writer.EmitInstructionString(OpCodeNumber.Ldstr, formatString);
-                 writer.EmitInstructionInt32(OpCodeNumber.Ldc_I4, numberOfArguments);
-                 writer.EmitInstructionType(OpCodeNumber.Newarr, enhancedType.Module.Cache.GetIntrinsic(IntrinsicType.Object));
-                int i = 0;
-                foreach (var field in fields)
-                {
-                    EmitLoadToString(writer, i, field);
-                    i++;
-                }
-                foreach (var property in properties)
-                {
-                    EmitLoadToString(writer, i, property, enhancedTypeIsValueType);
-                    i++;
-                }
-                writer.EmitInstructionMethod(OpCodeNumber.Call, assets.String_Format);
-                writer.EmitInstructionLocalVariable(OpCodeNumber.Stloc, resultVariable);
-                
-                writer.EmitBranchingInstruction(OpCodeNumber.Br, getHashCodeData.ReturnSequence);
-                writer.DetachInstructionSequence();
-            }
+            return (fields, properties);
         }
 
         private void EmitLoadToString(InstructionWriter writer, int index, UsableProperty property, bool enhancedTypeIsValueType)
         {
             EmitPrologueToLoad(writer, index);
+            
+            // Load the value:
             writer.EmitInstruction(OpCodeNumber.Ldarg_0);
             writer.EmitInstructionMethod(enhancedTypeIsValueType ? OpCodeNumber.Call : OpCodeNumber.Callvirt,
                 property.PropertyDefinition.Getter
                     .GetGenericInstance(property.MapToAccessThisPropertyFromMostDerivedClass)
                     .TranslateMethod(this.Project.Module));
+            
             EmitEpilogueToLoad(writer, property.PropertyDefinition.PropertyType.TranslateType(this.Project.Module).MapGenericArguments(property.MapToAccessThisPropertyFromMostDerivedClass));
         }
+        
         private void EmitLoadToString(InstructionWriter writer, int index, UsableField field)
         {
             EmitPrologueToLoad(writer, index);
+            
+            // Load the value:
             writer.EmitInstruction(OpCodeNumber.Ldarg_0);
             IField usedField = field.FieldDefinition.Translate(this.Project.Module).GetGenericInstance(field.MapToAccessTheFieldFromMostDerivedClass);
             writer.EmitInstructionField(OpCodeNumber.Ldfld, usedField);
+            
             EmitEpilogueToLoad(writer, usedField.FieldType.TranslateType(this.Project.Module).MapGenericArguments(field.MapToAccessTheFieldFromMostDerivedClass));
         }
+        
         private void EmitPrologueToLoad(InstructionWriter writer, int index)
         {
-            writer.EmitInstruction(OpCodeNumber.Dup);
-            writer.EmitInstructionInt32(OpCodeNumber.Ldc_I4, index);
+            writer.EmitInstruction(OpCodeNumber.Dup); // puts a pointer to the argument array on the stack
+            writer.EmitInstructionInt32(OpCodeNumber.Ldc_I4, index); // puts an index into the argument array on the stack
         }
+        
         private void EmitEpilogueToLoad(InstructionWriter writer, ITypeSignature type)
         {
             if (type.IsValueTypeSafe() == true || type.TypeSignatureElementKind == TypeSignatureElementKind.GenericParameterReference ||
@@ -183,12 +209,9 @@ namespace PostSharp.Community.ToString.Weaver
                     });
             }
 
+            // store the value onto the position in the argument array (position was put onto stack by the prologue)
             writer.EmitInstruction(OpCodeNumber.Stelem_Ref);
         }
-
-      
-
-      
 
         private string ConstructFormatString(Configuration config, TypeDefDeclaration type, List<UsableField> fields, List<UsableProperty> properties)
         {

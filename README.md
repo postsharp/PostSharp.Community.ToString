@@ -1,5 +1,5 @@
 ## <img src="icon.png" width="32"> &nbsp; PostSharp.Community.ToString 
-**This add-in is not yet functioning!**
+**This add-in is not yet published.**
 
 Auto-generates `ToString()` based on your class's fields and/or properties.  
 #### Example
@@ -40,8 +40,8 @@ Add `[ToString]` to the classes where you want to generate ToString, or use [mul
 
 You can also use `[IgnoreDuringToString]` to exclude some fields or properties from ToString.
 
-You can also set some formatting options in the properties of the `ToString` attribute. You can set these formatting options
-also globally by adding the assembly-wide attribute `[assembly:ToStringGlobalOptions]`.
+You can also set some formatting options in the properties of the `ToString` attribute. You can also set these formatting options
+globally by adding the assembly-wide attribute `[assembly:ToStringGlobalOptions]`.
 
 Possible options are:
 * PropertiesSeparator

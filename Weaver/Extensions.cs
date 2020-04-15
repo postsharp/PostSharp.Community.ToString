@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices.ComTypes;
 using PostSharp.Sdk.CodeModel;
@@ -9,6 +8,9 @@ namespace PostSharp.Community.ToString.Weaver
 {
     public static class Extensions
     {
+        /// <summary>
+        /// Gets the list of annotations of an attribute <paramref name="type"/> as a list rather than an enumerator.
+        /// </summary>
         public static List<IAnnotationInstance> GetAnnotations(
             this IAnnotationRepositoryService service, Type type)
         {
@@ -20,11 +22,6 @@ namespace PostSharp.Community.ToString.Weaver
                 l.Add(instance);
             }
             return l;
-        }
-        public static bool IsCollection(this ITypeSignature type)
-        {
-            return type.IsAssignableToRuntimeType(typeof(IEnumerable)) &&
-                   !type.IsAssignableToRuntimeType(typeof(string));
         }
     }
 }
