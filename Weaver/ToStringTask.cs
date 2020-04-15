@@ -16,17 +16,13 @@ namespace PostSharp.Community.ToString.Weaver
     [ExportTask(Phase = TaskPhase.CustomTransform, TaskName = nameof(ToStringTask))]
     public class ToStringTask : Task
     {
-        // Services imported this way are injected during task construction and can be used during Execute:
         [ImportService]
         private IAnnotationRepositoryService annotationRepositoryService;
-
         [ImportService] private ICompilerAdapterService compilerAdapterService;
 
         private Assets assets;
 
-        // This string, if defined, is printed to standard output if you build a project that uses this add-in from commandline.
-        // It will not show up in Visual Studio/Rider.
-        public override string CopyrightNotice => null;
+        public override string CopyrightNotice => "Simon Cropp, PostSharp Technologies, and contributors";
 
         public override bool Execute()
         {
@@ -71,25 +67,38 @@ namespace PostSharp.Community.ToString.Weaver
             CompilerGeneratedAttributeHelper.AddCompilerGeneratedAttribute(method);
             method.ReturnParameter = ParameterDeclaration.CreateReturnParameter(enhancedType.Module.Cache.GetIntrinsic(IntrinsicType.String));
 
-            List<FieldDefDeclaration> fields = new List<FieldDefDeclaration>();
-            foreach (FieldDefDeclaration field in enhancedType.Fields)
-            {
-                if (field.IsStatic || field.IsConst || ignoredDeclarations.Contains(field)) continue;
-                fields.Add(field);
-            }
-            
+            List<UsableField> fields = new List<UsableField>();
             List<PropertyDeclaration> properties = new List<PropertyDeclaration>();
-            foreach (PropertyDeclaration property in enhancedType.Properties)
+            TypeDefDeclaration processingType = enhancedType;
+            GenericMap mapToGetThere = enhancedType.GetGenericContext();
+            while (true)
             {
-                if (property.IsStatic || ignoredDeclarations.Contains(property) || !property.CanRead || property.Getter.Parameters.Count != 0) continue;
-                FieldDefDeclaration backingField = compilerAdapterService.GetBackingField(property);
-                if (backingField != null)
+                foreach (FieldDefDeclaration field in processingType.Fields)
                 {
-                    fields.Remove(backingField);
+                    if (field.IsStatic || field.IsConst || ignoredDeclarations.Contains(field)) continue;
+                    fields.Add(new UsableField(field, mapToGetThere));
                 }
-                properties.Add(property);
+                foreach (PropertyDeclaration property in processingType.Properties)
+                {
+                    FieldDefDeclaration backingField = compilerAdapterService.GetBackingField(property);
+                    if (backingField != null)
+                    {
+                        fields.RemoveAll(f => f.FieldDefinition == backingField);
+                    }
+
+                    if (property.IsStatic || ignoredDeclarations.Contains(property) || !property.CanRead ||
+                        property.Getter.Parameters.Count != 0) continue;
+                    properties.Add(property);
+                }
+
+                if (processingType.BaseType == null)
+                {
+                    break;
+                }
+                mapToGetThere = processingType.BaseType.GetGenericContext().Apply(mapToGetThere);
+                processingType = processingType.BaseType.GetTypeDefinition();
             }
-            
+
             // Generate code:
             using (InstructionWriter writer = InstructionWriter.GetInstance())
             {
@@ -117,7 +126,6 @@ namespace PostSharp.Community.ToString.Weaver
                 writer.EmitInstructionMethod(OpCodeNumber.Call, assets.String_Format);
                 writer.EmitInstructionLocalVariable(OpCodeNumber.Stloc, resultVariable);
                 
-                // Return the hash:
                 writer.EmitBranchingInstruction(OpCodeNumber.Br, getHashCodeData.ReturnSequence);
                 writer.DetachInstructionSequence();
             }
@@ -127,21 +135,24 @@ namespace PostSharp.Community.ToString.Weaver
         {
             EmitPrologueToLoad(writer, index);
             writer.EmitInstruction(OpCodeNumber.Ldarg_0);
-            writer.EmitInstructionMethod(enhancedTypeIsValueType ? OpCodeNumber.Call : OpCodeNumber.Callvirt, property.Getter.GetCanonicalGenericInstance());
+            writer.EmitInstructionMethod(enhancedTypeIsValueType ? OpCodeNumber.Call : OpCodeNumber.Callvirt,
+                property.Getter
+                    .GetGenericInstance(property.DeclaringType.GetGenericContext())
+                    .TranslateMethod(this.Project.Module));
             EmitEpilogueToLoad(writer, property.PropertyType);
         }
-        private void EmitLoadToString(InstructionWriter writer, int index, FieldDefDeclaration field)
+        private void EmitLoadToString(InstructionWriter writer, int index, UsableField field)
         {
             EmitPrologueToLoad(writer, index);
             writer.EmitInstruction(OpCodeNumber.Ldarg_0);
-            writer.EmitInstructionField(OpCodeNumber.Ldfld, field.GetCanonicalGenericInstance());
-            EmitEpilogueToLoad(writer, field.FieldType);
+            IField usedField = field.FieldDefinition.Translate(this.Project.Module).GetGenericInstance(field.MapToAccessTheFieldFromMostDerivedClass);
+            writer.EmitInstructionField(OpCodeNumber.Ldfld, usedField);
+            EmitEpilogueToLoad(writer, usedField.FieldType.TranslateType(this.Project.Module).MapGenericArguments(field.MapToAccessTheFieldFromMostDerivedClass));
         }
         private void EmitPrologueToLoad(InstructionWriter writer, int index)
         {
             writer.EmitInstruction(OpCodeNumber.Dup);
             writer.EmitInstructionInt32(OpCodeNumber.Ldc_I4, index);
-            // TODO null: write null
         }
         private void EmitEpilogueToLoad(InstructionWriter writer, ITypeSignature type)
         {
@@ -149,6 +160,21 @@ namespace PostSharp.Community.ToString.Weaver
             {
                 writer.EmitInstructionType(OpCodeNumber.Box, type);
             }
+            else
+            {
+                writer.EmitInstruction(OpCodeNumber.Dup);
+                // if null?
+                writer.IfNotZero(() =>
+                    {
+                        // ok, use the duplicate
+                    },
+                    () =>
+                    {
+                        writer.EmitInstruction(OpCodeNumber.Pop); // remove the duplicate
+                        writer.EmitInstructionString(OpCodeNumber.Ldstr, "null"); // replace with null
+                    });
+            }
+
             writer.EmitInstruction(OpCodeNumber.Stelem_Ref);
         }
 
@@ -156,19 +182,20 @@ namespace PostSharp.Community.ToString.Weaver
 
       
 
-        private string ConstructFormatString(Configuration config, TypeDefDeclaration type, List<FieldDefDeclaration> fields, List<PropertyDeclaration> properties)
+        private string ConstructFormatString(Configuration config, TypeDefDeclaration type, List<UsableField> fields, List<PropertyDeclaration> properties)
         {
             StringBuilder sb = new StringBuilder();
+            bool isThereAnything = fields.Count > 0 || properties.Count > 0;
             if (config.WrapWithBraces)
             {
                 sb.Append("{{");
             }
             if (config.WriteTypeName)
             {
-                sb.Append(type.ShortName + "; ");
+                sb.Append(type.ShortName + (isThereAnything ? "; " : ""));
             }
 
-            var all = fields.Concat<NamedMetadataDeclaration>(properties);
+            var all = fields.Select(fld => fld.FieldDefinition).Concat<NamedMetadataDeclaration>(properties);
             int i = 0;
             foreach (NamedMetadataDeclaration item in all)
             {
