@@ -2,6 +2,8 @@
 **This add-in is not yet published.**
 
 Auto-generates `ToString()` based on your class's fields and/or properties.  
+
+![Full Pipeline](https://github.com/postsharp/PostSharp.Community.ToString/workflows/Full%20Pipeline/badge.svg)
 #### Example
 Your code:
 ```csharp
