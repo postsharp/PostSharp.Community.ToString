@@ -14,7 +14,7 @@ namespace PostSharp.Community.ToString.Tests.Fody.AssemblyToProcess
         string NormalProperty { get; }
     }
 
-    [ToString]
+    [ToString(IncludePrivate = true)]
     public class ClassWithDerivedProperties : SuperClass, INormalProperty
     {
         public new string NormalProperty => "New";

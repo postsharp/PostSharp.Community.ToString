@@ -30,5 +30,10 @@ namespace PostSharp.Community.ToString
         /// If true, the ToString is result is wrapped in curly braces. The default is true, as in "{MyType1; answer:42}".
         /// </summary>
         public bool WrapWithBraces { get; set; } 
+        
+        /// <summary>
+        /// If true, private members are also included in the ToString method. Default false (they are excluded).
+        /// </summary>
+        public bool IncludePrivate { get; set; }
     }
 }

@@ -11,6 +11,7 @@ namespace PostSharp.Community.ToString.Weaver
         public string NameValueSeparator { get; set; } = ":";
         public bool WrapWithBraces { get; set; } = true;
         public bool WriteTypeName { get; set; } = true;
+        public bool IncludePrivate { get; set; } = false;
 
         /// <summary>
         /// Gets ToString configuration from an attribute, merging with the higher-level configuration <paramref name="baseConfiguration"/>.
@@ -26,6 +27,7 @@ namespace PostSharp.Community.ToString.Weaver
             MemberValuePairCollection namedArguments = value.NamedArguments;
             config.WrapWithBraces = (bool)(namedArguments[nameof(ToStringAttribute.WrapWithBraces)]?.Value.Value ?? baseConfiguration.WrapWithBraces);
             config.WriteTypeName = (bool) (namedArguments[nameof(ToStringAttribute.WriteTypeName)]?.Value.Value ?? baseConfiguration.WriteTypeName);
+            config.IncludePrivate = (bool) (namedArguments[nameof(ToStringAttribute.IncludePrivate)]?.Value.Value ?? baseConfiguration.IncludePrivate);
             config.NameValueSeparator = (string)(namedArguments[nameof(ToStringAttribute.PropertyNameToValueSeparator)]?.Value.Value ?? baseConfiguration.NameValueSeparator);
             config.PropertiesSeparator = (string)(namedArguments[nameof(ToStringAttribute.PropertiesSeparator)]?.Value.Value ?? baseConfiguration.PropertiesSeparator);
             return config;
