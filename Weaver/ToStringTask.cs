@@ -117,7 +117,7 @@ namespace PostSharp.Community.ToString.Weaver
                 foreach (FieldDefDeclaration field in processingType.Fields)
                 {
                     if (field.IsStatic || field.IsConst || ignoredDeclarations.Contains(field)) continue;
-                    if (field.Visibility == Visibility.Private && !config.IncludeEverything) continue;
+                    if (field.Visibility == Visibility.Private && !config.IncludePrivate) continue;
                     // Exclude inaccessible fields:
                     if (isInBaseType && !field.IsVisible(enhancedType)) continue;
                     // Exclude PostSharp and generated fields:
@@ -139,7 +139,7 @@ namespace PostSharp.Community.ToString.Weaver
                     // Exclude indexers:
                     if (property.IsStatic || ignoredDeclarations.Contains(property) || !property.CanRead ||
                         property.Getter.Parameters.Count != 0) continue;
-                    if (property.Visibility == Visibility.Private && !config.IncludeEverything) continue;
+                    if (property.Visibility == Visibility.Private && !config.IncludePrivate) continue;
                     // Exclude inaccessible properties:
                     if (isInBaseType && !property.IsVisible(enhancedType)) continue;
                     // Exclude PostSharp and generated fields that were lifted into properties:

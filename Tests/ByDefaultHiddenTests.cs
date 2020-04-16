@@ -28,7 +28,7 @@ namespace PostSharp.Community.ToString.Tests
         public int Three = 3;
     }
     
-    [ToString(IncludeEverything = true)]
+    [ToString(IncludePrivate = true)]
     public class ShowThem
     {
         private int One = 1;

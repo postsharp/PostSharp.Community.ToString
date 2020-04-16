@@ -34,6 +34,6 @@ namespace PostSharp.Community.ToString
         /// <summary>
         /// If true, private members are also included in the ToString method. Default false (they are excluded).
         /// </summary>
-        public bool IncludeEverything { get; set; }
+        public bool IncludePrivate { get; set; }
     }
 }

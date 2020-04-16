@@ -50,7 +50,7 @@ Possible options are:
 * PropertyNameToValueSeparator
 * WriteTypeName  
 * WrapWithBraces
-* IncludeEverything (includes also private members)
+* IncludePrivate (includes also private members)
 
 ToString will include all non-private fields and properties from the class including accessible fields and properties from any base classes. 
 
