@@ -49,14 +49,15 @@ Possible options are:
 * PropertiesSeparator
 * PropertyNameToValueSeparator
 * WriteTypeName  
-* WrapWithBraces 
+* WrapWithBraces
+* IncludeEverything (includes also private members)
 
-ToString will include all fields and properties from the class including accessible fields and properties from any base classes. 
+ToString will include all non-private fields and properties from the class including accessible fields and properties from any base classes. 
 
-If you want to exclude some fields or properties from ToString everywhere, for example, exclude everything that's private, you can [multicast](https://github.com/postsharp/Home/blob/master/multicasting.md) the `[IgnoreDuringToString]` attribute like this:
+If you want to exclude some fields or properties from ToString everywhere, for example, exclude everything that's protected, you can [multicast](https://github.com/postsharp/Home/blob/master/multicasting.md) the `[IgnoreDuringToString]` attribute like this:
 
 ```csharp
-[assembly: IgnoreDuringToString(AttributeTargetMemberAttributes = MulticastAttributes.Private)
+[assembly: IgnoreDuringToString(AttributeTargetMemberAttributes = MulticastAttributes.Protected)
 ```
 
 #### Copyright notices

@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Text;
+using PostSharp.Reflection;
 using PostSharp.Sdk.CodeModel;
 using PostSharp.Sdk.CodeModel.Helpers;
 using PostSharp.Sdk.Extensibility;
@@ -60,7 +62,7 @@ namespace PostSharp.Community.ToString.Weaver
             CompilerGeneratedAttributeHelper.AddCompilerGeneratedAttribute(method);
             method.ReturnParameter = ParameterDeclaration.CreateReturnParameter(enhancedType.Module.Cache.GetIntrinsic(IntrinsicType.String));
 
-            var (fields, properties) = FindFieldsAndProperties(enhancedType, ignoredDeclarations);
+            var (fields, properties) = FindFieldsAndProperties(enhancedType, ignoredDeclarations, config);
 
             // Generate code:
             using (InstructionWriter writer = InstructionWriter.GetInstance())
@@ -103,7 +105,7 @@ namespace PostSharp.Community.ToString.Weaver
         /// fields and properties in base classes, transitively, but it excludes ignored fields and properties.
         /// </summary>
         private (List<UsableField> fields, List<UsableProperty> properties) FindFieldsAndProperties(TypeDefDeclaration enhancedType,
-            HashSet<MetadataDeclaration> ignoredDeclarations)
+            HashSet<MetadataDeclaration> ignoredDeclarations, Configuration config)
         {
             List<UsableField> fields = new List<UsableField>();
             List<UsableProperty> properties = new List<UsableProperty>();
@@ -115,8 +117,13 @@ namespace PostSharp.Community.ToString.Weaver
                 foreach (FieldDefDeclaration field in processingType.Fields)
                 {
                     if (field.IsStatic || field.IsConst || ignoredDeclarations.Contains(field)) continue;
+                    if (field.Visibility == Visibility.Private && !config.IncludeEverything) continue;
                     // Exclude inaccessible fields:
                     if (isInBaseType && !field.IsVisible(enhancedType)) continue;
+                    // Exclude PostSharp and generated fields:
+                    if (field.Name[0] == '<') continue;
+                    // Exclude field-like events:
+                    if (processingType.Events.Any(ev => ev.Name == field.Name)) continue;
                     
                     fields.Add(new UsableField(field, mapToGetThere));
                 }
@@ -132,14 +139,20 @@ namespace PostSharp.Community.ToString.Weaver
                     // Exclude indexers:
                     if (property.IsStatic || ignoredDeclarations.Contains(property) || !property.CanRead ||
                         property.Getter.Parameters.Count != 0) continue;
+                    if (property.Visibility == Visibility.Private && !config.IncludeEverything) continue;
                     // Exclude inaccessible properties:
                     if (isInBaseType && !property.IsVisible(enhancedType)) continue;
+                    // Exclude PostSharp and generated fields that were lifted into properties:
+                    if (property.Name[0] == '<') continue;
                     // Exclude base properties with the same name. This way, if a property is overridden, we output it
                     // only once:
                     if (properties.Any(prp => prp.PropertyDefinition.Name == property.Name)) continue;
+                    // Exclude field-like events (whose fields were promoted to properties by PostSharp):
+                    if (processingType.Events.Any(ev => ev.Name == property.Name)) continue;
                     
                     properties.Add(new UsableProperty(property, mapToGetThere));
                 }
+
 
                 // Ends at System.Object:
                 if (processingType.BaseType == null)
