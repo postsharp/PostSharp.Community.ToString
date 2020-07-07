@@ -1,6 +1,8 @@
 ## <img src="icon.png" width="32"> &nbsp; PostSharp.Community.ToString 
 Auto-generates `ToString()` based on your class's fields and/or properties.  
 
+*This is an add-in for [PostSharp](https://postsharp.net). It modifies your assembly during compilation by using IL weaving.*
+
 ![Full Pipeline](https://github.com/postsharp/PostSharp.Community.ToString/workflows/Full%20Pipeline/badge.svg)
 #### Example
 Your code:
