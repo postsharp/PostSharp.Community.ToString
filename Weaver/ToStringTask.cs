@@ -6,6 +6,7 @@ using System.Text;
 using PostSharp.Reflection;
 using PostSharp.Sdk.CodeModel;
 using PostSharp.Sdk.CodeModel.Helpers;
+using PostSharp.Sdk.CodeModel.TypeSignatures;
 using PostSharp.Sdk.Extensibility;
 using PostSharp.Sdk.Extensibility.Compilers;
 using PostSharp.Sdk.Extensibility.Tasks;
@@ -82,13 +83,13 @@ namespace PostSharp.Community.ToString.Weaver
                 int i = 0;
                 foreach (var field in fields)
                 {
-                    EmitLoadToString(writer, i, field);
+                    EmitLoadToString(writer, i, field, config);
                     i++;
                 }
                 bool enhancedTypeIsValueType = enhancedType.IsValueTypeSafe() == true;
                 foreach (var property in properties)
                 {
-                    EmitLoadToString(writer, i, property, enhancedTypeIsValueType);
+                    EmitLoadToString(writer, i, property, enhancedTypeIsValueType, config);
                     i++;
                 }
                 
@@ -168,7 +169,7 @@ namespace PostSharp.Community.ToString.Weaver
             return (fields, properties);
         }
 
-        private void EmitLoadToString(InstructionWriter writer, int index, UsableProperty property, bool enhancedTypeIsValueType)
+        private void EmitLoadToString(InstructionWriter writer, int index, UsableProperty property, bool enhancedTypeIsValueType, Configuration config)
         {
             EmitPrologueToLoad(writer, index);
             
@@ -179,10 +180,10 @@ namespace PostSharp.Community.ToString.Weaver
                     .GetGenericInstance(property.MapToAccessThisPropertyFromMostDerivedClass)
                     .TranslateMethod(this.Project.Module));
             
-            EmitEpilogueToLoad(writer, property.PropertyDefinition.PropertyType.TranslateType(this.Project.Module).MapGenericArguments(property.MapToAccessThisPropertyFromMostDerivedClass));
+            EmitEpilogueToLoad(writer, property.PropertyDefinition.PropertyType.TranslateType(this.Project.Module).MapGenericArguments(property.MapToAccessThisPropertyFromMostDerivedClass), config);
         }
         
-        private void EmitLoadToString(InstructionWriter writer, int index, UsableField field)
+        private void EmitLoadToString(InstructionWriter writer, int index, UsableField field, Configuration config)
         {
             EmitPrologueToLoad(writer, index);
             
@@ -191,7 +192,7 @@ namespace PostSharp.Community.ToString.Weaver
             IField usedField = field.FieldDefinition.Translate(this.Project.Module).GetGenericInstance(field.MapToAccessTheFieldFromMostDerivedClass);
             writer.EmitInstructionField(OpCodeNumber.Ldfld, usedField);
             
-            EmitEpilogueToLoad(writer, usedField.FieldType.TranslateType(this.Project.Module).MapGenericArguments(field.MapToAccessTheFieldFromMostDerivedClass));
+            EmitEpilogueToLoad(writer, usedField.FieldType.TranslateType(this.Project.Module).MapGenericArguments(field.MapToAccessTheFieldFromMostDerivedClass), config);
         }
         
         private void EmitPrologueToLoad(InstructionWriter writer, int index)
@@ -200,12 +201,14 @@ namespace PostSharp.Community.ToString.Weaver
             writer.EmitInstructionInt32(OpCodeNumber.Ldc_I4, index); // puts an index into the argument array on the stack
         }
         
-        private void EmitEpilogueToLoad(InstructionWriter writer, ITypeSignature type)
+        private void EmitEpilogueToLoad(InstructionWriter writer, ITypeSignature type, Configuration config)
         {
             if (type.IsValueTypeSafe() == true || type.TypeSignatureElementKind == TypeSignatureElementKind.GenericParameterReference ||
                 type.TypeSignatureElementKind == TypeSignatureElementKind.GenericParameter)
             {
                 writer.EmitInstructionType(OpCodeNumber.Box, type);
+                EmitCollectionTransform(writer, type, config);
+               
             }
             else
             {
@@ -214,6 +217,7 @@ namespace PostSharp.Community.ToString.Weaver
                 writer.IfNotZero(() =>
                     {
                         // ok, use the duplicate
+                        EmitCollectionTransform(writer, type, config);
                     },
                     () =>
                     {
@@ -224,6 +228,17 @@ namespace PostSharp.Community.ToString.Weaver
 
             // store the value onto the position in the argument array (position was put onto stack by the prologue)
             writer.EmitInstruction(OpCodeNumber.Stelem_Ref);
+        }
+
+        private void EmitCollectionTransform(InstructionWriter writer, ITypeSignature type, Configuration config)
+        {
+            if (CollectionsWeaver.IsCollection(type) || type is ArrayTypeSignature)
+            { 
+                // ToString a collection first instead of using it directly:
+                // The collection is currently on the stack, so we just add the properties separator:
+                writer.EmitInstructionString(OpCodeNumber.Ldstr, config.PropertiesSeparator);
+                writer.EmitInstructionMethod(OpCodeNumber.Call, assets.CollectionHelper_ToString);
+            }
         }
 
         private string ConstructFormatString(Configuration config, TypeDefDeclaration type, List<UsableField> fields, List<UsableProperty> properties)

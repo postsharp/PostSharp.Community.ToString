@@ -112,7 +112,7 @@ namespace PostSharp.Community.ToString.Tests.Fody
 
             var result = instance.ToString();
 
-            Assert.Equal("{ComplexChild; InChildNumber: 1, InChildText: 2, InChildCollection: System.Int32[], InParentNumber: 4, InParentText: 5, InParentCollection: System.Int32[]}", result);
+            Assert.Equal("{ComplexChild; InChildNumber: 1, InChildText: 2, InChildCollection: [3], InParentNumber: 4, InParentText: 5, InParentCollection: [6]}", result);
         }
 
         [Fact]
@@ -150,10 +150,10 @@ namespace PostSharp.Community.ToString.Tests.Fody
 
             var result = nestedInstance.ToString();
 
-            Assert.Equal("{IntCollection; Count: 2, Collection: System.Int32[]}", result);
+            Assert.Equal("{IntCollection; Count: 2, Collection: [1, 2, 3, 4, ...]}", result);
         }
 
-        [Fact(Skip = "Collection enumeration not implemented")]
+        [Fact]
         public void StringArray()
         {
             var nestedInstance = new StringCollection();
@@ -174,7 +174,7 @@ namespace PostSharp.Community.ToString.Tests.Fody
 
             var result = nestedInstance.ToString();
 
-            Assert.Equal("{IntCollection; Count: 0, Collection: System.Int32[]}", result);
+            Assert.Equal("{IntCollection; Count: 0, Collection: []}", result);
         }
 
         [Fact]
@@ -189,7 +189,7 @@ namespace PostSharp.Community.ToString.Tests.Fody
             Assert.Equal("{IntCollection; Count: 0, Collection: null}", result);
         }
 
-        [Fact(Skip = "Collection enumeration not implemented")]
+        [Fact]
         public void ObjectArray()
         {
             var arrayInstance = new ObjectCollection();
@@ -209,10 +209,10 @@ namespace PostSharp.Community.ToString.Tests.Fody
 
             var result = arrayInstance.ToString();
 
-            Assert.Equal("{ObjectCollection; Count: 2, Collection: [NormalClass; X: 1, Y: 2, Z: 4.5, V: C}, null]}", result);
+            Assert.Equal("{ObjectCollection; Count: 2, Collection: [{NormalClass; X: 1, Y: 2, Z: 4.5, V: C}, null]}", result);
         }
 
-        [Fact(Skip = "Collections are not enumerated")]
+        [Fact]
         public void GenericClassWithCollection()
         {
             var instance = new GenericClass<GenericClassNormalClass>();
@@ -229,10 +229,10 @@ namespace PostSharp.Community.ToString.Tests.Fody
 
             var result = instance.ToString();
 
-            Assert.Equal("{GenericClass<GenericClassNormalClass>; A: 1, B: [GenericClassNormalClass; D: 2, C: 3}]}", result);
+            Assert.Equal("{GenericClass; a: 1, A: 1, B: [{GenericClassNormalClass; D: 2, C: 3}]}", result);
         }
 
-        [Fact(Skip = "Enumeration not implemented")]
+        [Fact]
         public void WithoutGenericParameter()
         {
             var instance = new WithoutGenericParameter();
@@ -247,10 +247,10 @@ namespace PostSharp.Community.ToString.Tests.Fody
 
             var result = instance.ToString();
 
-            Assert.Equal("{WithoutGenericParameter; Z: 12, A: 1, B: [GenericClassNormalClass; D: 3, C: -4}]}", result);
+            Assert.Equal("{WithoutGenericParameter; a: 1, Z: 12, A: 1, B: [{GenericClassNormalClass; D: 3, C: -4}]}", result);
         }
 
-        [Fact(Skip = "Showing generic arguments not implemented")]
+        [Fact]
         public void WithGenericParameter()
         {
             var instance = new WithGenericParameter<GenericClassNormalClass>();
@@ -265,7 +265,7 @@ namespace PostSharp.Community.ToString.Tests.Fody
 
             var result = instance.ToString();
 
-            Assert.Equal("{WithGenericParameter<GenericClassNormalClass>; X: 12, A: 1, B: [GenericClassNormalClass; D: 3, C: 4}]}", result);
+            Assert.Equal("{WithGenericParameter; a: 1, X: 12, A: 1, B: [{GenericClassNormalClass; D: 3, C: 4}]}", result);
         }
 
         [Fact]

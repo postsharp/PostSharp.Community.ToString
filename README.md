@@ -54,6 +54,8 @@ Possible options are:
 
 ToString will include all non-private fields and properties from the class including accessible fields and properties from any base classes. 
 
+For arrays and collections, ToString will print the first four elements of the collection, separated by PropertiesSeparator (for example, `[1,2,3,4,...]` for an array of 5 or more integers).
+
 If you want to exclude some fields or properties from ToString everywhere, for example, exclude everything that's protected, you can [multicast](https://github.com/postsharp/Home/blob/master/multicasting.md) the `[IgnoreDuringToString]` attribute like this:
 
 ```csharp
