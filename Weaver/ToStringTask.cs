@@ -6,6 +6,7 @@ using System.Text;
 using PostSharp.Reflection;
 using PostSharp.Sdk.CodeModel;
 using PostSharp.Sdk.CodeModel.Helpers;
+using PostSharp.Sdk.CodeModel.TypeSignatures;
 using PostSharp.Sdk.Extensibility;
 using PostSharp.Sdk.Extensibility.Compilers;
 using PostSharp.Sdk.Extensibility.Tasks;
@@ -206,6 +207,11 @@ namespace PostSharp.Community.ToString.Weaver
                 type.TypeSignatureElementKind == TypeSignatureElementKind.GenericParameter)
             {
                 writer.EmitInstructionType(OpCodeNumber.Box, type);
+                if (CollectionsWeaver.IsCollection(type) || type is ArrayTypeSignature)
+                { 
+                    // ToString a collection first instead of using it directly:
+                    writer.EmitInstructionMethod(OpCodeNumber.Call, assets.CollectionHelper_ToString);
+                }
             }
             else
             {
@@ -214,6 +220,12 @@ namespace PostSharp.Community.ToString.Weaver
                 writer.IfNotZero(() =>
                     {
                         // ok, use the duplicate
+                        
+                        if (CollectionsWeaver.IsCollection(type) || type is ArrayTypeSignature)
+                        {
+                            // ToString a collection first instead of using it directly:
+                            writer.EmitInstructionMethod(OpCodeNumber.Call, assets.CollectionHelper_ToString);
+                        }
                     },
                     () =>
                     {

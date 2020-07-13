@@ -2,7 +2,7 @@
 <package>
   <metadata>
     <id>PostSharp.Community.ToString</id>
-    <version>1.1</version>
+    <version>1.2</version>
     <title>PostSharp.Community.ToString</title>
     <authors>PostSharp Technologies, Simon Cropp and contributors</authors>
     <owners>PostSharp Technologies</owners>
@@ -11,7 +11,7 @@
     <projectUrl>https://github.com/postsharp/PostSharp.Community.ToString</projectUrl>
     <icon>icon.png</icon>
     <description>Auto-generates `ToString()` based on your class's fields and/or properties.</description>
-    <releaseNotes>First full non-preview release.</releaseNotes>
+    <releaseNotes>Collections are now ToString'd as [1,2,3,4,...] rather than System.Collections.Generic.List`1[System.Int32].</releaseNotes>
     <copyright>SharpCrafters s.r.o., Simon Cropp and contributors</copyright>
     <tags>postsharp ilweaving addin tostring</tags>
     <dependencies>
