@@ -12,7 +12,7 @@ namespace PostSharp.Community.ToString.Weaver
         /// <summary>
         /// Gets the method <see cref="CollectionHelper.ToString(System.Collections.IEnumerable)"/>.
         /// </summary>
-        public IGenericMethodDefinition CollectionHelper_ToString;
+        public IGenericMethodDefinition CollectionHelper_ToString { get; }
 
         public Assets(ModuleDeclaration module)
         {
@@ -21,7 +21,7 @@ namespace PostSharp.Community.ToString.Weaver
                 m.Parameters.Count == 2 &&
                 m.Parameters[1].ParameterType.TypeSignatureElementKind == TypeSignatureElementKind.Array);    
             var collectionHelperTypeDef = module.Cache.GetType( typeof(CollectionHelper) ).GetTypeDefinition();
-            this.CollectionHelper_ToString = module.FindMethod( collectionHelperTypeDef, "ToString",
+            this.CollectionHelper_ToString = module.FindMethod( collectionHelperTypeDef, nameof(CollectionHelper.ToString),
                 declaration => declaration.IsStatic );
         }
     }

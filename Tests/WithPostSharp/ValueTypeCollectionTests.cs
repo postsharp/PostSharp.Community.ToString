@@ -10,7 +10,7 @@ namespace PostSharp.Community.ToString.Tests.WithPostSharp
         public void TestToStringOnValueType()
         {
             Containing containing = new Containing();
-            Assert.Equal("{Containing; Cvt: [1,2,3,4,...]}", containing.ToString());
+            Assert.Equal("{Containing; Cvt: [1//2//3//4//...]}", containing.ToString());
         }
         [Fact]
         public void TestToStringOnValueType2()
@@ -19,7 +19,7 @@ namespace PostSharp.Community.ToString.Tests.WithPostSharp
             Assert.Equal("{Containing2; Cvt: []}", containing.ToString());
         }
 
-        [ToString]
+        [ToString(PropertiesSeparator = "//")]
         class Containing
         {
             public CollectionValueType Cvt { get; } = new CollectionValueType();

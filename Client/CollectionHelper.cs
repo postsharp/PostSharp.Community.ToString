@@ -14,8 +14,9 @@ namespace PostSharp.Community.ToString
         /// for the collection of "1", "2", ... "100", this would return <c>[1,2,3,4,...]</c>.
         /// </summary>
         /// <param name="collection">The collection.</param>
+        /// <param name="elementsSeparator">The comma that separates elements of the collection in the output.</param>
         /// <returns>The string representation of the collection.</returns>
-        public static string ToString( IEnumerable collection )
+        public static string ToString( IEnumerable collection, string elementsSeparator )
         {
             if ( collection == null )
             {
@@ -31,7 +32,8 @@ namespace PostSharp.Community.ToString
                 if (count == 4)
                 {
                     // Only show the first four elements of the collection.
-                    sb.Append(",...");
+                    sb.Append(elementsSeparator);
+                    sb.Append("...");
                     break;
                 }
                 if (first)
@@ -40,7 +42,7 @@ namespace PostSharp.Community.ToString
                 }
                 else
                 {
-                    sb.Append(',');
+                    sb.Append(elementsSeparator);
                 }
                 sb.Append(enumerator.Current?.ToString() ?? "null");
                 count++;

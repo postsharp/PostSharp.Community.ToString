@@ -150,7 +150,7 @@ namespace PostSharp.Community.ToString.Tests.Fody
 
             var result = nestedInstance.ToString();
 
-            Assert.Equal("{IntCollection; Count: 2, Collection: [1,2,3,4,...]}", result);
+            Assert.Equal("{IntCollection; Count: 2, Collection: [1, 2, 3, 4, ...]}", result);
         }
 
         [Fact]
@@ -162,7 +162,7 @@ namespace PostSharp.Community.ToString.Tests.Fody
 
             var result = nestedInstance.ToString();
 
-            Assert.Equal("{StringCollection; Count: 2, Collection: [foo,bar]}", result);
+            Assert.Equal("{StringCollection; Count: 2, Collection: [foo, bar]}", result);
         }
 
         [Fact]
@@ -209,7 +209,7 @@ namespace PostSharp.Community.ToString.Tests.Fody
 
             var result = arrayInstance.ToString();
 
-            Assert.Equal("{ObjectCollection; Count: 2, Collection: [{NormalClass; X: 1, Y: 2, Z: 4.5, V: C},null]}", result);
+            Assert.Equal("{ObjectCollection; Count: 2, Collection: [{NormalClass; X: 1, Y: 2, Z: 4.5, V: C}, null]}", result);
         }
 
         [Fact]
