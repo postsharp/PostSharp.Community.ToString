@@ -263,7 +263,7 @@ namespace PostSharp.Community.ToString.Weaver
                     sb.Append(config.PropertiesSeparator);
                 }
 
-                string name = item.Name;
+                string name = GetPropertyNameToWrite(item.Name, config);
                 int lastDot = name.LastIndexOf('.');
                 if (lastDot != -1)
                 {
@@ -281,6 +281,27 @@ namespace PostSharp.Community.ToString.Weaver
                 sb.Append("}}");
             }
             return sb.ToString();
+        }
+
+        private string GetPropertyNameToWrite(string propertyName, Configuration config)
+        {
+            string name = propertyName;
+            switch (config.PropertyNamingConvention)
+            {
+                case NamingConvention.CamelCase:
+                    return ConvertToCamelCase(name);
+                default:
+                    return name;
+            }
+        }
+
+        private static string ConvertToCamelCase(string value)
+        {
+            if (value == null || value.Length == 0)
+            {
+                return value;
+            }
+            return char.ToLower(value[0]) + value.Substring(1);
         }
     }
 }

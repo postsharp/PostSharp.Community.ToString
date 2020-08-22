@@ -51,6 +51,7 @@ Possible options are:
 * WriteTypeName  
 * WrapWithBraces
 * IncludePrivate (includes also private members)
+* PropertyNamingConvention (CamelCase option)
 
 ToString will include all non-private fields and properties from the class including accessible fields and properties from any base classes. 
 

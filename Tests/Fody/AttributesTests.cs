@@ -78,5 +78,19 @@ namespace PostSharp.Community.ToString.Tests.Fody
                 "{X: 1, Y: 2, Z: 4.5, V: C}",
                 result);
         }
+
+        [Fact]
+        public void NormalClassTest_ShouldWritePropertyNamesInCamelCase()
+        {
+            var instance = new NormalClassPropertyCamelCase();
+            instance.FooBar = 1;
+            instance.Baz = "2";
+
+            var result = instance.ToString();
+
+            Assert.Equal(
+                string.Format("{{NormalClassPropertyCamelCase; fooBar: 1, baz: 2}}", PropertiesSeparator),
+                result);
+        }
     }
 }

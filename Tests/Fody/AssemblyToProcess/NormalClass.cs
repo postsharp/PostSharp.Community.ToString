@@ -43,7 +43,7 @@
          public double Z { get; set; }
 
          public char V { get; set; }
-     } 
+     }
      [ToString(WriteTypeName = false)]
      public class NormalClassNoTypeName
      {
@@ -54,5 +54,11 @@
          public double Z { get; set; }
 
          public char V { get; set; }
+     }
+     [ToString(PropertyNamingConvention = NamingConvention.CamelCase)]
+     public class NormalClassPropertyCamelCase
+     {
+         public int FooBar { get; set; }
+         public string Baz { get; set; }
      }
  }
