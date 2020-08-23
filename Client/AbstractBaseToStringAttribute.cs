@@ -37,7 +37,7 @@ namespace PostSharp.Community.ToString
         public bool IncludePrivate { get; set; }
 
         /// <summary>
-        /// Naming convention to follow for writing property name. Default will write the property name as is.
+        /// Naming convention to follow for writing field and property names. The default is "write the property name as is".
         /// </summary>
         public NamingConvention PropertyNamingConvention { get; set; }
     }
