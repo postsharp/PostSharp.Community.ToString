@@ -35,5 +35,10 @@ namespace PostSharp.Community.ToString
         /// If true, private members are also included in the ToString method. Default false (they are excluded).
         /// </summary>
         public bool IncludePrivate { get; set; }
+
+        /// <summary>
+        /// Naming convention to follow for writing property name. Default will write the property name as is.
+        /// </summary>
+        public NamingConvention PropertyNamingConvention { get; set; }
     }
 }

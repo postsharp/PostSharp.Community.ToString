@@ -12,6 +12,7 @@ namespace PostSharp.Community.ToString.Weaver
         public bool WrapWithBraces { get; set; } = true;
         public bool WriteTypeName { get; set; } = true;
         public bool IncludePrivate { get; set; } = false;
+        public NamingConvention PropertyNamingConvention { get; set; } = NamingConvention.Default;
 
         /// <summary>
         /// Gets ToString configuration from an attribute, merging with the higher-level configuration <paramref name="baseConfiguration"/>.
@@ -30,6 +31,7 @@ namespace PostSharp.Community.ToString.Weaver
             config.IncludePrivate = (bool) (namedArguments[nameof(ToStringAttribute.IncludePrivate)]?.Value.Value ?? baseConfiguration.IncludePrivate);
             config.NameValueSeparator = (string)(namedArguments[nameof(ToStringAttribute.PropertyNameToValueSeparator)]?.Value.Value ?? baseConfiguration.NameValueSeparator);
             config.PropertiesSeparator = (string)(namedArguments[nameof(ToStringAttribute.PropertiesSeparator)]?.Value.Value ?? baseConfiguration.PropertiesSeparator);
+            config.PropertyNamingConvention = (NamingConvention)(namedArguments[nameof(ToStringAttribute.PropertyNamingConvention)]?.Value.Value ?? baseConfiguration.PropertyNamingConvention);
             return config;
         }
 
